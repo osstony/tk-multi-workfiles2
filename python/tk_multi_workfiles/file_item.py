@@ -1,11 +1,11 @@
 # Copyright (c) 2015 Shotgun Software Inc.
-# 
+#
 # CONFIDENTIAL AND PROPRIETARY
-# 
-# This work is provided "AS IS" and subject to the Shotgun Pipeline Toolkit 
+#
+# This work is provided "AS IS" and subject to the Shotgun Pipeline Toolkit
 # Source Code License included in this distribution package. See LICENSE.
-# By accessing, using, copying or modifying this work you indicate your 
-# agreement to the Shotgun Pipeline Toolkit Source Code License. All rights 
+# By accessing, using, copying or modifying this work you indicate your
+# agreement to the Shotgun Pipeline Toolkit Source Code License. All rights
 # not expressly granted therein are reserved by Shotgun Software Inc.
 
 import sgtk
@@ -24,7 +24,7 @@ class FileItem(object):
     @staticmethod
     def build_file_key(fields, template, ignore_fields = None):
         """
-        Build a unique key from the specified fields and template.  This will be used to determine 
+        Build a unique key from the specified fields and template.  This will be used to determine
         if multiple files are actually just versions of the same file.
 
         For example, the following inputs:
@@ -33,24 +33,24 @@ class FileItem(object):
             template: /assets/{sg_asset_type}/{Asset}/{Step}/work/maya/{Asset}_{Step}[_{name}]_v{version}.{maya_ext}
             ignore_fields: ["version"]
 
-            Notes: 
+            Notes:
             - The template key maya_ext has a default value of 'mb'
 
         Will generate the file key:
 
             (('Asset', 'Fred'), ('Step', 'Anm'), ('maya_ext':'mb'), ('name', 'test'), ('sg_asset_type', 'Character'))
 
-            Notes: 
+            Notes:
             - 'version' is skipped because it was specified in the ignore_fields
             - 'sub_name' is skipped because it isn't a valid key in the template
-            - Although 'maya_ext' wasn't included in the input fields, it is added to the file key as 
-              it has a default value in the template 
+            - Although 'maya_ext' wasn't included in the input fields, it is added to the file key as
+              it has a default value in the template
 
         :param fields:          A dictionary of fields extracted from a file path
-        :param template:        The template that represents the files this key will be 
+        :param template:        The template that represents the files this key will be
                                 used to compare.
         :param ignore_fields:   A list of fields to ignore when constructing the key.
-                                Typically this will contain at least 'version' but it 
+                                Typically this will contain at least 'version' but it
                                 may also contain other fields (e.g. user initials in
                                 the file name).
         :returns:               An immutable 'key' that can be used for comparison and
@@ -82,13 +82,13 @@ class FileItem(object):
             if (key.name not in ignore_fields
                 and key.default != None
                 and key.name not in file_key):
-                file_key[key.name] = key.default 
+                file_key[key.name] = key.default
 
         # return an immutable representation of the sorted dictionary:
         # e.g. (('sequence', 'Sequence01'), ('shot', 'shot_010'), ('name', 'foo'))
         return tuple(sorted(file_key.iteritems()))
 
-    def __init__(self, key, is_work_file=False, work_path=None, work_details=None, 
+    def __init__(self, key, is_work_file=False, work_path=None, work_details=None,
                  is_published=False, publish_path=None, publish_details=None):
         """
         Construction
@@ -106,6 +106,8 @@ class FileItem(object):
         self._is_local = is_work_file
         self._path = work_path
         self._details = work_details or {}
+
+        self._metadata = self._details.get("metadata", {})
 
         self._is_published = is_published
         self._publish_path = publish_path
@@ -222,7 +224,7 @@ class FileItem(object):
         :returns:   A string representing the local/work file path of this file
         """
         return self._path
-    
+
     @property
     def modified_at(self):
         """
@@ -297,6 +299,13 @@ class FileItem(object):
         :returns:   A Shotgun entity dictionary representing the user who published this file
         """
         return self._publish_details.get("published_by")
+
+    @property
+    def metadata(self):
+        """
+        :returns:   A dictionary of additional metadata attributes
+        """
+        return self._metadata
 
     # ------------------------------------------------------------------------------------------
     # Public methods
@@ -399,6 +408,21 @@ class FileItem(object):
         else:
             return "<i>No description was entered for this publish</i>"
 
+    def format_perforce_status_details(self):
+        statuses = self.metadata.get("p4_statuses", [])
+        status_str = "File is up to date."
+
+        # print statuses
+        if "Out Of Date" in statuses:
+            status_str = "Local file is out of date."
+        elif "Missing" in statuses:
+            status_str = "File is missing locally."
+        elif "Outside Modified" in statuses:
+            status_str = "This file has been modified locally outside of Perforce!"
+        elif "File Deleted" in statuses:
+            status_str = "This file has been deleted."
+        return status_str
+
     def format_tooltip(self):
         """
         Format text for a tooltip containing all useful information about
@@ -434,7 +458,7 @@ class FileItem(object):
             if publish_versions:
                 max_pub_version = max(publish_versions)
                 if not latest_publish_version or max_pub_version > latest_publish_version.version:
-                    latest_publish_version = self.versions[max_pub_version] 
+                    latest_publish_version = self.versions[max_pub_version]
 
         # add the file name and version:
         tooltip += ("<b>%s, v%03d</b><br>" % (self.name, self.version))
@@ -444,7 +468,7 @@ class FileItem(object):
             tooltip += "<i>This is the latest version of this file</i>"
         else:
             if latest_version.is_published:
-                tooltip += ("<i>A more recent Publish (v%03d) is available</i>" % latest_version.version) 
+                tooltip += ("<i>A more recent Publish (v%03d) is available</i>" % latest_version.version)
             elif latest_version.is_local:
                 tooltip += ("<i>A more recent Work File (v%03d) is available</i>" % latest_version.version)
 
@@ -468,6 +492,10 @@ class FileItem(object):
                 tooltip += latest_publish_version.format_published_by_details(single_line=True)
                 tooltip += "<br>"
                 tooltip += ("<i>%s</i>" % latest_publish_version.format_publish_description())
+
+            tooltip += "<hr>"
+            tooltip += "<b>Perforce Status:</b><br>"
+            tooltip += self.format_perforce_status_details()
 
         # if the file isn't editable then add this to the tooltip as well
         if not self.editable:
@@ -559,7 +587,7 @@ class FileItem(object):
         # work file is favoured over the publish!
         local_is_latest = False
         if self.modified_at and published_file.published_at:
-            # check file modification time - we only consider a local version to be 'latest' 
+            # check file modification time - we only consider a local version to be 'latest'
             # if it has a more recent modification time than the published file (with 2mins
             # tollerance)
             if self.modified_at > published_file.published_at:
@@ -598,8 +626,8 @@ class FileItem(object):
         elif time_diff < timedelta(days=2):
             date_str = "Yesterday"
         else:
-            date_str = "%d%s %s" % (modified_date.day, 
-                                    self._day_suffix(modified_date.day), 
+            date_str = "%d%s %s" % (modified_date.day,
+                                    self._day_suffix(modified_date.day),
                                     modified_date.strftime("%b %Y"))
 
         # format the modified time into a 12-hour am/pm format
@@ -612,7 +640,7 @@ class FileItem(object):
 
     def _day_suffix(self, day):
         """
-        Figure out the suffix to use for the specified day of the month (e.g. 1st, 3rd, 
+        Figure out the suffix to use for the specified day of the month (e.g. 1st, 3rd,
         15th, 32nd, etc.)
 
         :param day: The day of the month
@@ -637,4 +665,4 @@ class FileItem(object):
 
 
 
-    
+

@@ -1,11 +1,11 @@
 # Copyright (c) 2015 Shotgun Software Inc.
-# 
+#
 # CONFIDENTIAL AND PROPRIETARY
-# 
-# This work is provided "AS IS" and subject to the Shotgun Pipeline Toolkit 
+#
+# This work is provided "AS IS" and subject to the Shotgun Pipeline Toolkit
 # Source Code License included in this distribution package. See LICENSE.
-# By accessing, using, copying or modifying this work you indicate your 
-# agreement to the Shotgun Pipeline Toolkit Source Code License. All rights 
+# By accessing, using, copying or modifying this work you indicate your
+# agreement to the Shotgun Pipeline Toolkit Source Code License. All rights
 # not expressly granted therein are reserved by Shotgun Software Inc.
 
 import sgtk
@@ -16,17 +16,17 @@ from ..ui.file_widget import Ui_FileWidget
 class FileWidget(QtGui.QWidget):
     """
     """
-    
+
     def __init__(self, parent):
         """
         Construction
         """
         QtGui.QWidget.__init__(self, parent)
-        
+
         # set up the UI
         self._ui = Ui_FileWidget()
         self._ui.setupUi(self)
-        
+
         # create the status icons and add them to a layout over the main thumbnail:
         self._publish_icon = QtGui.QLabel(self)
         self._publish_icon.setMinimumSize(16, 16)
@@ -41,11 +41,17 @@ class FileWidget(QtGui.QWidget):
         self._lock_icon.setPixmap(QtGui.QPixmap(":/tk-multi-workfiles2/padlock.png"))
         self._lock_icon.hide()
 
+        self._status_icon = QtGui.QLabel(self)
+        self._status_icon.setMinimumSize(16, 16)
+        self._status_icon.setAlignment(QtCore.Qt.AlignCenter)
+        self._status_icon.hide()
+
         rhs_layout = QtGui.QVBoxLayout()
         rhs_layout.setContentsMargins(0, 0, 0, 0)
         rhs_layout.setSpacing(0)
         rhs_layout.addWidget(self._lock_icon)
         rhs_layout.addStretch(1)
+        rhs_layout.addWidget(self._status_icon)
         rhs_layout.addWidget(self._publish_icon)
 
         thumb_layout = QtGui.QHBoxLayout(self._ui.thumbnail)
@@ -55,7 +61,7 @@ class FileWidget(QtGui.QWidget):
         thumb_layout.addLayout(rhs_layout)
 
         self._ui.thumbnail.setLayout(thumb_layout)
-        
+
         self._is_selected = False
         self._update_ui()
 
@@ -83,7 +89,7 @@ class FileWidget(QtGui.QWidget):
 
     def set_is_editable(self, editable):
         """
-        Set if the file this item represents is editable - if not editable 
+        Set if the file this item represents is editable - if not editable
         then an additional padlock icon is shown on the thumbnail for this item
 
         :param editable:    True if the file is editable, otherwise False

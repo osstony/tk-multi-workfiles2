@@ -123,6 +123,8 @@ class FileActionFactory(object):
         actions.extend(self._create_published_file_actions(file_item, current_user_file_versions))
         # Creates actions for previous versions of the current file.
         actions.extend(self._create_previous_versions_actions_menus(file_item))
+        # Creates actions for future versions of the current file.
+        actions.extend(self._create_future_versions_actions_menus(file_item))
         # Creates a New action.
         actions.extend(self._create_new_file_action())
         # Creates actions provided by the custom_ ctions hook.
@@ -307,6 +309,79 @@ class FileActionFactory(object):
             previous_versions_actions.append(ActionGroup("Version %d" % previous_file_item.version, version_actions))
 
         return previous_versions_actions
+
+    def _create_future_versions_actions_menus(self, file_item):
+        """
+        Creates a list of previous versions menus if the file item has previous versions.
+
+        :param file_item: File item to generate actions for.
+
+        :returns: List of actions.
+        """
+        actions = []
+        # ------------------------------------------------------------------
+        actions.append(SeparatorAction())
+
+        actions.extend(
+            self._create_future_versions_actions_menu(
+                "Future Work Files",
+                [item for item in file_item.versions.itervalues() if file_item.version < item.version and item.is_local]
+            )
+        )
+
+        actions.extend(
+            self._create_future_versions_actions_menu(
+                "Future Publishes",
+                [item for item in file_item.versions.itervalues() if file_item.version < item.version and item.is_published],
+            )
+        )
+
+        return actions
+
+    def _create_future_versions_actions_menu(self, label, future_versions):
+        """
+        Creates a menu of actions if the file has previous versions.
+
+        :param label: Name of the menu.
+        :future_versions: List of versions to generate a menu for.
+
+        :returns: List of menu of actions.
+        """
+        if not future_versions:
+            return []
+
+        version_versions_actions = self._create_future_versions_actions(
+            future_versions
+        )
+        return [ActionGroup(label, version_versions_actions)]
+
+    def _create_future_versions_actions(self, future_versions):
+        """
+        Creates a list of actions for all the previous versions of a given type.
+
+        :param future_versions: List of future versions to create menu actions for in the Future
+            Versions sub-menu.
+
+        :returns: List of Actions.
+        """
+        future_versions_actions = []
+
+        # Gives us the last ten versions, from the earliest to the latest.
+        for future_file_item in future_versions[: self.__nb_versions_in_menu + 1]:
+
+            current_user_file_versions = self._get_current_user_file_versions(future_file_item)
+
+            version_actions = []
+            # Retrieve all the actions for a version submenu. We're not interested into New, the default Open or
+            # previous version actions for this sub menu, so we won't add them here.
+            version_actions.extend(self._create_local_file_actions(future_file_item, current_user_file_versions))
+            version_actions.extend(self._create_published_file_actions(future_file_item, current_user_file_versions))
+            version_actions.extend(self._create_custom_actions(future_file_item, current_user_file_versions))
+            version_actions.extend(self._create_show_in_actions(future_file_item, current_user_file_versions))
+
+            future_versions_actions.append(ActionGroup("Version %d" % future_file_item.version, version_actions))
+
+        return future_versions_actions
 
     def _create_new_file_action(self):
         """
